@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dynamodb-pv-volume
+  labels:
+    type: local
+    app: dynamodb
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /mnt
+    type: Directory
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamodb-pv-claim
+  labels:
+    app: dynamodb
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: dynamodb-pv-volume
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dynamodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dynamodb
+  template:
+    metadata:
+      labels:
+        app: dynamodb
+    spec:
+      containers:
+        - name: dynamodb
+          image: amazon/dynamodb-local:latest
+          imagePullPolicy: "Always"
+          command: ["/bin/bash", "-c"]
+          args: 
+            - |
+              echo "$HOME"
+              echo "I am in here $PWD"
+              ls -l
+              java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar -sharedDb -dbPath ./
+          ports:
+          - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: dynamodb-config
+          volumeMounts:
+            - mountPath: /home/dynamodblocal/data
+              name: dynamodb-storage
+          # workingDir: /home/dynamodblocal
+      volumes:
+        - name: dynamodb-storage
+          persistentVolumeClaim:
+            claimName: dynamodb-pv-claim
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dynamodb
+  labels:
+    app: dynamodb
+spec:
+  type: NodePort
+  ports: 
+    - port: 8000
+  selector:
+    app: dynamodb
+  

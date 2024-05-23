@@ -1,0 +1,19 @@
+apiVersion: skaffold/v2beta23
+kind: Config
+metadata:
+  name: apmlify-social
+deploy:
+  kustomize:
+    buildArgs:
+      - "--load-restrictor LoadRestrictionsNone"
+    paths:
+      - k8s/base
+profiles:
+  - name: local
+    deploy:
+      kustomize:
+        buildArgs:
+          - "--load-restrictor LoadRestrictionsNone"
+        paths:
+          - k8s/local
+      kubeContext: kind-knative
